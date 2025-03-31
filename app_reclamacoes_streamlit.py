@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 
@@ -10,8 +9,17 @@ st.title("📊 Análise de Reclamações por Unidade")
 def carregar_dados():
     excel = pd.ExcelFile("Reclamacoes_2025_Traduzido.xlsx")
     df = pd.concat([excel.parse(mes).assign(Mês=mes) for mes in excel.sheet_names], ignore_index=True)
-    df["Review date"] = pd.to_datetime(df["Review date"], errors='coerce')
-    df["Negative review (PT)"] = df["Negative review (PT)"].fillna("").astype(str).str.lower()
+
+    # Padronizar colunas
+    df.columns = df.columns.str.strip()
+
+    # Verificar e converter datas se coluna existir
+    if "Review date" in df.columns:
+        df["Review date"] = pd.to_datetime(df["Review date"], errors='coerce')
+
+    if "Negative review (PT)" in df.columns:
+        df["Negative review (PT)"] = df["Negative review (PT)"].fillna("").astype(str).str.lower()
+
     return df
 
 df_all = carregar_dados()
@@ -36,7 +44,7 @@ def identificar_tema(texto):
 
 df_all["Tema identificado"] = df_all["Negative review (PT)"].apply(identificar_tema)
 
-# Filtros flexíveis
+# Filtros
 meses = sorted(df_all["Mês"].unique())
 meses_selecionados = st.multiselect("Selecionar mês(es)", meses, default=meses)
 
@@ -46,7 +54,7 @@ unidades_selecionadas = st.multiselect("Selecionar unidade(s)", unidades)
 temas_disponiveis = sorted(df_all["Tema identificado"].unique())
 temas_escolhidos = st.multiselect("Selecionar tema(s)", temas_disponiveis)
 
-# Aplicar os filtros
+# Aplicar filtros
 df_filtrado = df_all[df_all["Mês"].isin(meses_selecionados)]
 
 if unidades_selecionadas:
@@ -61,5 +69,11 @@ df_filtrado = df_filtrado[~df_filtrado["Review score"].isin([8, 9, 10])]
 
 # Exibir resultado
 st.subheader("📋 Reclamações detalhadas")
-st.dataframe(df_filtrado[["Mês", "Unit", "Tema identificado", "Negative review (PT)", "Review score"]].sort_values("Review date"), use_container_width=True)
 
+if "Review date" in df_filtrado.columns:
+    df_filtrado = df_filtrado.sort_values("Review date")
+
+st.dataframe(
+    df_filtrado[["Mês", "Unit", "Tema identificado", "Negative review (PT)", "Review score"]],
+    use_container_width=True
+)
